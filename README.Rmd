@@ -91,7 +91,7 @@ Once you are done setting up the project, you can now start working with the MET
 
 2. Load the met data from https://raw.githubusercontent.com/JSC370/JSC370-2024/main/data/met_all_2023.gz, and also the station data. For the latter, you can use the code we used during lecture to pre-process the stations data:
 
-```{r stations-data, eval = FALSE}
+```{r stations-data}
 # Download the data
 library(data.table)
 stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
