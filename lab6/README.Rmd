@@ -1,8 +1,9 @@
 ---
 title: "Lab 06 - Regular Expressions and Web Scraping"
-output: html_document
-editor_options: 
-  markdown: 
+output:
+  html_document: default
+editor_options:
+  markdown:
     wrap: 72
 ---
 
@@ -39,7 +40,7 @@ https://pubmed.ncbi.nlm.nih.gov/?term=h5n1
 
 Complete the lines of code:
 
-```{r counter-pubmed, eval=FALSE}
+```{r counter-pubmed}
 # Downloading the website
 website <- xml2::read_html("https://pubmed.ncbi.nlm.nih.gov/?term=h5n1")
 
@@ -76,7 +77,7 @@ Use the function `httr::GET()` to make the following query:
 The parameters passed to the query are documented
 [here](https://www.ncbi.nlm.nih.gov/books/NBK25499/).
 
-```{r papers-covid-toronto, eval=FALSE}
+```{r papers-covid-toronto}
 library(httr)
 query_ids <- GET(
   url   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
@@ -105,7 +106,7 @@ The Ids are wrapped around text in the following way:
 `<Id>... id number ...</Id>`. we can use a regular expression that
 extract that information. Fill out the following lines of code:
 
-```{r get-ids, eval = FALSE}
+```{r get-ids}
 # Turn the result into a character vector
 ids <- as.character(ids)
 
@@ -136,7 +137,7 @@ around `I()` (as you would do in a formula in R). For example, the text
 `"123,456"` is replaced with `"123%2C456"`. If you don't want that
 behavior, you would need to do the following `I("123,456")`.
 
-```{r get-abstracts, eval = FALSE}
+```{r get-abstracts}
 publications <- GET(
   url   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
   query = list(
@@ -165,10 +166,11 @@ Using the function `stringr::str_extract_all()` applied on
 
 Write a regular expression that captures all such instances
 
-```{r univ-institute-regex, eval = FALSE}
+```{r univ-institute-regex}
+library(stringr)
 institution <- str_extract_all(
   publications_txt,
-  "[YOUR REGULAR EXPRESSION HERE]"
+  "University\\s+of\\s+[[:alpha:]]+|[[:alpha:]]+\\s+Institute\\s+of\\s+[[:alpha:]]+"
   ) 
 institution <- unlist(institution)
 as.data.frame(table(institution))
@@ -182,10 +184,10 @@ the form of
 
 And tabulate the results
 
-```{r school-department, eval = FALSE}
+```{r school-department}
 schools_and_deps <- str_extract_all(
-  abstracts_txt,
-  "[YOUR REGULAR EXPRESSION HERE]"
+  publications_txt,
+  "School\\s+of\\s+[[:alpha:]]+|Department\\s+of\\s+[[:alpha:]]+"
   )
 as.data.frame(table(schools_and_deps))
 ```
@@ -202,7 +204,7 @@ to keep one element per id. This way, if a paper is missing the
 abstract, or something else, we will be able to properly match PUBMED
 IDS with their corresponding records.
 
-```{r one-string-per-response, eval = FALSE}
+```{r one-string-per-response}
 pub_char_list <- xml2::xml_children(publications)
 pub_char_list <- sapply(pub_char_list, as.character)
 ```
@@ -211,35 +213,59 @@ Now, extract the abstract and article title for each one of the elements
 of `pub_char_list`. You can either use `sapply()` as we just did, or
 simply take advantage of vectorization of `stringr::str_extract`
 
-```{r extracting-last-bit, eval = FALSE}
-abstracts <- str_extract(pub_char_list, "[YOUR REGULAR EXPRESSION]")
-abstracts <- str_remove_all(abstracts, "[CLEAN ALL THE HTML TAGS]")
-abstracts <- str_remove_all(abstracts, "[CLEAN ALL EXTRA WHITE SPACE AND NEW LINES]")
+```{r extracting-last-bit}
+abstracts <- str_extract(pub_char_list,
+"<Abstract>(\\n|.)+</Abstract>")
+abstracts <- str_remove_all(abstracts, "</?[[:alnum:]]+>")
+# abstracts <- str_remove_all(abstracts, "\\s+")
 ```
 
 -   How many of these don't have an abstract?
 
-*Answer here.*
+```{r}
+table(is.na(abstracts))
+```
+
+4
 
 Now, the title
 
-```{r process-titles, eval = FALSE}
-titles <- str_extract(pub_char_list, "[YOUR REGULAR EXPRESSION]")
-titles <- str_remove_all(titles, "[CLEAN ALL THE HTML TAGS]")
+```{r process-titles}
+titles <- str_extract(pub_char_list,
+"<ArticleTitle>(\\n|.)+</ArticleTitle>")
+titles <- str_remove_all(titles, "</?[[:alnum:]]+>")
+# titles <- str_remove_all(titles, "\\s+")
 ```
 
 -   How many of these don't have a title ?
 
-*Answer here.*
+```{r}
+table(is.na(titles))
+```
+
+None of them
 
 Finally, put everything together into a single `data.frame` and use
 `knitr::kable` to print the results
 
-```{r build-db, eval = FALSE}
+```{r build-db}
+library(knitr)
+library(kableExtra)
+
 database <- data.frame(
-  "[DATA TO CONCATENATE]"
+  PubMedID = ids,
+  Title = titles,
+  abstracts = abstracts
 )
-knitr::kable(database)
+
+database %>%
+  kable("html", escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "400px")
+```
+
+```{r}
+write.csv(database, "pubmed.csv", row.names = TRUE)
 ```
 
 Done! Knit the document, commit, and push.
